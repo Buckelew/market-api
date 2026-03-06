@@ -1,6 +1,7 @@
 package vision
 
 import (
+	"image"
 	"strings"
 	"testing"
 )
@@ -123,5 +124,34 @@ func TestDetectLanguageJapanesePackaging(t *testing.T) {
 	}
 	if reason == "" {
 		t.Fatal("detectLanguage() reason was empty")
+	}
+}
+
+func TestResizeToMaxDimensionShrinksLargeImages(t *testing.T) {
+	t.Parallel()
+
+	img := image.NewRGBA(image.Rect(0, 0, 4000, 2000))
+	resized, changed := resizeToMaxDimension(img, 1000)
+	if !changed {
+		t.Fatal("resizeToMaxDimension() changed = false, want true")
+	}
+	if resized.Bounds().Dx() != 1000 {
+		t.Fatalf("resizeToMaxDimension() width = %d, want 1000", resized.Bounds().Dx())
+	}
+	if resized.Bounds().Dy() != 500 {
+		t.Fatalf("resizeToMaxDimension() height = %d, want 500", resized.Bounds().Dy())
+	}
+}
+
+func TestResizeToMaxDimensionKeepsSmallImages(t *testing.T) {
+	t.Parallel()
+
+	img := image.NewRGBA(image.Rect(0, 0, 800, 600))
+	resized, changed := resizeToMaxDimension(img, 1000)
+	if changed {
+		t.Fatal("resizeToMaxDimension() changed = true, want false")
+	}
+	if resized.Bounds().Dx() != 800 || resized.Bounds().Dy() != 600 {
+		t.Fatalf("resizeToMaxDimension() bounds = %v, want 800x600", resized.Bounds())
 	}
 }

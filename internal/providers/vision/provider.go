@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"sort"
 	"image/png"
 	"io"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -27,7 +27,14 @@ type Provider struct {
 	tesseractBin string
 	langs        string
 	maxImages    int
+	ocrTimeout   time.Duration
 }
+
+const (
+	defaultImageDownloadTimeout = 10 * time.Second
+	defaultOCRTimeout           = 6 * time.Second
+	defaultOCRMaxDimension      = 1800
+)
 
 type ocrObservation struct {
 	ImageURL         string   `json:"image_url"`
@@ -56,10 +63,11 @@ func New(tesseractBin, langs string, maxImages int) *Provider {
 	}
 
 	return &Provider{
-		client:       &http.Client{Timeout: 20 * time.Second},
+		client:       &http.Client{Timeout: defaultImageDownloadTimeout},
 		tesseractBin: tesseractBin,
 		langs:        langs,
 		maxImages:    maxImages,
+		ocrTimeout:   defaultOCRTimeout,
 	}
 }
 
@@ -85,13 +93,20 @@ func (p *Provider) AnalyzeOnePiece(ctx context.Context, title, description strin
 	quantityOrder := make([]int, 0, 2)
 
 	for _, imageURL := range cleaned {
-		localPath, err := p.downloadImage(ctx, imageURL)
+		if err := ctx.Err(); err != nil {
+			warnings = append(warnings, "image analysis canceled: "+err.Error())
+			break
+		}
+
+		downloadCtx, downloadCancel := withTimeoutCap(ctx, defaultImageDownloadTimeout)
+		localPath, err := p.downloadImage(downloadCtx, imageURL)
+		downloadCancel()
 		if err != nil {
 			warnings = append(warnings, "image download failed: "+err.Error())
 			continue
 		}
 
-		variants, cleanup, err := buildOCRVariants(localPath)
+		variants, cleanup, err := buildOCRVariants(localPath, defaultOCRMaxDimension)
 		if err != nil {
 			_ = os.Remove(localPath)
 			warnings = append(warnings, "image preprocessing failed: "+err.Error())
@@ -99,7 +114,14 @@ func (p *Provider) AnalyzeOnePiece(ctx context.Context, title, description strin
 		}
 
 		for _, variant := range variants {
-			text, err := p.runOCR(ctx, variant.path)
+			if err := ctx.Err(); err != nil {
+				warnings = append(warnings, "image analysis canceled: "+err.Error())
+				break
+			}
+
+			ocrCtx, ocrCancel := withTimeoutCap(ctx, p.ocrTimeout)
+			text, err := p.runOCR(ocrCtx, variant.path)
+			ocrCancel()
 			if err != nil {
 				warnings = append(warnings, "image OCR failed: "+err.Error())
 				continue
@@ -240,7 +262,7 @@ type ocrVariant struct {
 	weight int
 }
 
-func buildOCRVariants(localPath string) ([]ocrVariant, func(), error) {
+func buildOCRVariants(localPath string, maxDimension int) ([]ocrVariant, func(), error) {
 	variants := []ocrVariant{{name: "original", path: localPath, weight: 2}}
 	tempFiles := make([]string, 0, 2)
 	cleanup := func() {
@@ -258,6 +280,15 @@ func buildOCRVariants(localPath string) ([]ocrVariant, func(), error) {
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return variants, cleanup, nil
+	}
+
+	if resized, changed := resizeToMaxDimension(img, maxDimension); changed {
+		resizedPath, err := writeImagePNG(resized, "resized")
+		if err == nil {
+			tempFiles = append(tempFiles, resizedPath)
+			variants[0].path = resizedPath
+			img = resized
+		}
 	}
 
 	bounds := img.Bounds()
@@ -298,6 +329,21 @@ func writeCrop(img image.Image, rect image.Rectangle, prefix string) (string, er
 	defer file.Close()
 
 	if err := png.Encode(file, cropped); err != nil {
+		_ = os.Remove(file.Name())
+		return "", err
+	}
+
+	return file.Name(), nil
+}
+
+func writeImagePNG(img image.Image, prefix string) (string, error) {
+	file, err := os.CreateTemp("", prefix+"-*.png")
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	if err := png.Encode(file, img); err != nil {
 		_ = os.Remove(file.Name())
 		return "", err
 	}
@@ -347,6 +393,49 @@ func (p *Provider) runOCR(ctx context.Context, path string) (string, error) {
 		return "", fmt.Errorf("%s: %w", path, err)
 	}
 	return string(output), nil
+}
+
+func withTimeoutCap(ctx context.Context, max time.Duration) (context.Context, context.CancelFunc) {
+	if max <= 0 {
+		return ctx, func() {}
+	}
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= max {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, max)
+}
+
+func resizeToMaxDimension(img image.Image, maxDimension int) (image.Image, bool) {
+	if maxDimension <= 0 {
+		return img, false
+	}
+
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+	if width <= maxDimension && height <= maxDimension {
+		return img, false
+	}
+
+	var targetWidth, targetHeight int
+	if width >= height {
+		targetWidth = maxDimension
+		targetHeight = max(1, height*maxDimension/width)
+	} else {
+		targetHeight = maxDimension
+		targetWidth = max(1, width*maxDimension/height)
+	}
+
+	scaled := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+	for y := 0; y < targetHeight; y++ {
+		srcY := bounds.Min.Y + y*height/targetHeight
+		for x := 0; x < targetWidth; x++ {
+			srcX := bounds.Min.X + x*width/targetWidth
+			scaled.Set(x, y, img.At(srcX, srcY))
+		}
+	}
+
+	return scaled, true
 }
 
 func detectLanguage(title, description string, observations []ocrObservation) (string, float64, string) {
