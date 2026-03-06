@@ -33,7 +33,7 @@ type Service struct {
 
 var (
 	resolveTimeout        = 20 * time.Second
-	visionAnalysisTimeout = 8 * time.Second
+	visionAnalysisTimeout = 30 * time.Second
 	cardLookupTimeout     = 8 * time.Second
 )
 

@@ -32,8 +32,8 @@ type Provider struct {
 
 const (
 	defaultImageDownloadTimeout = 10 * time.Second
-	defaultOCRTimeout           = 6 * time.Second
-	defaultOCRMaxDimension      = 1800
+	defaultOCRTimeout           = 15 * time.Second
+	defaultOCRMaxDimension      = 1200
 )
 
 type ocrObservation struct {
@@ -302,13 +302,6 @@ func buildOCRVariants(localPath string, maxDimension int) ([]ocrVariant, func(),
 	if err == nil {
 		tempFiles = append(tempFiles, bottomPath)
 		variants = append(variants, ocrVariant{name: "bottom-third", path: bottomPath, weight: 3})
-	}
-
-	lowerHalf := image.Rect(bounds.Min.X, bounds.Min.Y+height/2, bounds.Max.X, bounds.Max.Y)
-	lowerHalfPath, err := writeCrop(img, lowerHalf, "lower-half")
-	if err == nil {
-		tempFiles = append(tempFiles, lowerHalfPath)
-		variants = append(variants, ocrVariant{name: "lower-half", path: lowerHalfPath, weight: 2})
 	}
 
 	return variants, cleanup, nil
