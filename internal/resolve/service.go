@@ -559,7 +559,9 @@ func variantQueryHint(raw models.ResolveRequestInput, normalized models.ResolveR
 	switch {
 	case strings.Contains(combined, " reprint "):
 		return "reprint"
-	case strings.Contains(combined, " parallel ") || strings.Contains(combined, " alt art ") || strings.Contains(combined, " alternate art "):
+	case strings.Contains(combined, " alt art ") || strings.Contains(combined, " alternate art "):
+		return "alternate art"
+	case strings.Contains(combined, " parallel "):
 		return "parallel"
 	case strings.Contains(combined, " sp "):
 		return "sp"
