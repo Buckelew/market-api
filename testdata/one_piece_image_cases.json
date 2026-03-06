@@ -1,0 +1,358 @@
+{
+  "generated_at": "2026-03-06T05:08:26Z",
+  "queries": [
+    "one piece op",
+    "one piece st",
+    "one piece prb english",
+    "one piece english op",
+    "one piece japanese op",
+    "one piece st english",
+    "one piece magazine japanese",
+    "one piece card lot",
+    "japanese one piece card lot"
+  ],
+  "cases": [
+    {
+      "listing_id": "m10415882727",
+      "listing_url": "https://www.mercari.com/us/item/m10415882727/",
+      "source_query": "one piece st",
+      "expected_card_code": "OP13-091",
+      "expected_language": "unknown",
+      "listing_kind": "single",
+      "original_title": "One Piece op13-091",
+      "original_description": "One piece op13-091 \nSt Marcus mars alternate art\nNear mint\nGreat card",
+      "redacted_title": "One Piece",
+      "redacted_description": "One piece St Marcus mars alternate art Near mint Great card",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m10415882727_1.jpg?1769572783"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m10415882727",
+        "source_url": "https://www.mercari.com/us/item/m10415882727/",
+        "title": "One Piece",
+        "description": "One piece St Marcus mars alternate art Near mint Great card",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m10415882727_1.jpg?1769572783"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m10415882727",
+        "source_url": "https://www.mercari.com/us/item/m10415882727/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m10415882727_1.jpg?1769572783"
+        ]
+      }
+    },
+    {
+      "listing_id": "m96380592280",
+      "listing_url": "https://www.mercari.com/us/item/m96380592280/",
+      "source_query": "one piece prb english",
+      "expected_card_code": "OP01-024",
+      "expected_language": "en",
+      "listing_kind": "single",
+      "original_title": "Luffy PRB Alt Art",
+      "original_description": "Monkey D. Luffy - OP01-024 Alt Art - PRB01 The Best - One Piece English",
+      "redacted_title": "Luffy PRB Alt Art",
+      "redacted_description": "Monkey D. Luffy Alt Art PRB01 The Best One Piece English",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m96380592280_1.jpg?1769997145",
+        "https://u-mercari-images.mercdn.net/photos/m96380592280_2.jpg?1769997145"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m96380592280",
+        "source_url": "https://www.mercari.com/us/item/m96380592280/",
+        "title": "Luffy PRB Alt Art",
+        "description": "Monkey D. Luffy Alt Art PRB01 The Best One Piece English",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m96380592280_1.jpg?1769997145",
+          "https://u-mercari-images.mercdn.net/photos/m96380592280_2.jpg?1769997145"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m96380592280",
+        "source_url": "https://www.mercari.com/us/item/m96380592280/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m96380592280_1.jpg?1769997145",
+          "https://u-mercari-images.mercdn.net/photos/m96380592280_2.jpg?1769997145"
+        ]
+      }
+    },
+    {
+      "listing_id": "m33663220902",
+      "listing_url": "https://www.mercari.com/us/item/m33663220902/",
+      "source_query": "one piece prb english",
+      "expected_card_code": "OP10-119",
+      "expected_language": "en",
+      "listing_kind": "sealed",
+      "original_title": "Trafalgar Law OP10-119 SEC Reprint PRB-02 Premium Booster The Best Vol 2 ENGLISH",
+      "original_description": "Trafalgar Law OP10-119 SEC Reprint PRB-02 Premium Booster The Best Vol 2 ENGLISH\n\nPulled and Sleeve immediately with top loader \n\nWill ship with extra care",
+      "redacted_title": "Trafalgar Law SEC Reprint PRB 02 Premium Booster The Best Vol 2 ENGLISH",
+      "redacted_description": "Trafalgar Law SEC Reprint PRB 02 Premium Booster The Best Vol 2 ENGLISH Pulled and Sleeve immediately with top loader Will ship with extra care",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m33663220902_1.jpg?1772431096",
+        "https://u-mercari-images.mercdn.net/photos/m33663220902_2.jpg?1772431096"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m33663220902",
+        "source_url": "https://www.mercari.com/us/item/m33663220902/",
+        "title": "Trafalgar Law SEC Reprint PRB 02 Premium Booster The Best Vol 2 ENGLISH",
+        "description": "Trafalgar Law SEC Reprint PRB 02 Premium Booster The Best Vol 2 ENGLISH Pulled and Sleeve immediately with top loader Will ship with extra care",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m33663220902_1.jpg?1772431096",
+          "https://u-mercari-images.mercdn.net/photos/m33663220902_2.jpg?1772431096"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m33663220902",
+        "source_url": "https://www.mercari.com/us/item/m33663220902/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m33663220902_1.jpg?1772431096",
+          "https://u-mercari-images.mercdn.net/photos/m33663220902_2.jpg?1772431096"
+        ]
+      }
+    },
+    {
+      "listing_id": "m77278558542",
+      "listing_url": "https://www.mercari.com/us/item/m77278558542/",
+      "source_query": "one piece st english",
+      "expected_card_code": "ST21-001",
+      "expected_language": "en",
+      "listing_kind": "lot",
+      "original_title": "2025 One Piece CCG English ST 21-001 Monkey D Luffy PSA 10 Gem Mt Alternate Art",
+      "original_description": "2025 One Piece CCG English ST 21-001 Monkey D Luffy PSA 10 Gem Mt Alternate Art\n\ncert #-146830921\n\n\nOffers and Bundles Welcome! Feel free to reach out with questions!!! all sales final. Ships Next day",
+      "redacted_title": "2025 One Piece CCG English Monkey D Luffy PSA 10 Gem Mt Alternate Art",
+      "redacted_description": "2025 One Piece CCG English Monkey D Luffy PSA 10 Gem Mt Alternate Art cert # 146830921 Offers and Bundles Welcome! Feel free to reach out with questions!!! all sales final. Ships Next day",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m77278558542_1.jpg?1772766411",
+        "https://u-mercari-images.mercdn.net/photos/m77278558542_2.jpg?1772766411"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m77278558542",
+        "source_url": "https://www.mercari.com/us/item/m77278558542/",
+        "title": "2025 One Piece CCG English Monkey D Luffy PSA 10 Gem Mt Alternate Art",
+        "description": "2025 One Piece CCG English Monkey D Luffy PSA 10 Gem Mt Alternate Art cert # 146830921 Offers and Bundles Welcome! Feel free to reach out with questions!!! all sales final. Ships Next day",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m77278558542_1.jpg?1772766411",
+          "https://u-mercari-images.mercdn.net/photos/m77278558542_2.jpg?1772766411"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m77278558542",
+        "source_url": "https://www.mercari.com/us/item/m77278558542/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m77278558542_1.jpg?1772766411",
+          "https://u-mercari-images.mercdn.net/photos/m77278558542_2.jpg?1772766411"
+        ]
+      }
+    },
+    {
+      "listing_id": "m46237343220",
+      "listing_url": "https://www.mercari.com/us/item/m46237343220/",
+      "source_query": "one piece magazine japanese",
+      "expected_card_code": "ST21-014",
+      "expected_language": "jp",
+      "listing_kind": "sealed",
+      "original_title": "Shonen Jump One Piece Magazine Vol.20 with Promo Card Luffy SR ST21-014 Sealed U",
+      "original_description": "One Piece Magazine Vol.20 with Promo Card Luffy SR ST21-014 Sealed US SELLER\n\nbought in person at my local Kinokuniya store, brand new with card sealed inside the magazine. open to reasonable offers, can post same day!",
+      "redacted_title": "Shonen Jump One Piece Magazine Vol.20 with Promo Card Luffy SR Sealed U",
+      "redacted_description": "One Piece Magazine Vol.20 with Promo Card Luffy SR Sealed US SELLER bought in person at my local Kinokuniya store brand new with card sealed inside the magazine. open to reasonable offers can post same day!",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m46237343220_1.jpg?1772758827",
+        "https://u-mercari-images.mercdn.net/photos/m46237343220_2.jpg?1772758827"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m46237343220",
+        "source_url": "https://www.mercari.com/us/item/m46237343220/",
+        "title": "Shonen Jump One Piece Magazine Vol.20 with Promo Card Luffy SR Sealed U",
+        "description": "One Piece Magazine Vol.20 with Promo Card Luffy SR Sealed US SELLER bought in person at my local Kinokuniya store brand new with card sealed inside the magazine. open to reasonable offers can post same day!",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m46237343220_1.jpg?1772758827",
+          "https://u-mercari-images.mercdn.net/photos/m46237343220_2.jpg?1772758827"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m46237343220",
+        "source_url": "https://www.mercari.com/us/item/m46237343220/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m46237343220_1.jpg?1772758827",
+          "https://u-mercari-images.mercdn.net/photos/m46237343220_2.jpg?1772758827"
+        ]
+      }
+    },
+    {
+      "listing_id": "m19692896047",
+      "listing_url": "https://www.mercari.com/us/item/m19692896047/",
+      "source_query": "one piece magazine japanese",
+      "expected_card_code": "ST21-014",
+      "expected_language": "jp",
+      "listing_kind": "single",
+      "original_title": "Monkey D. Luffy ST21-014 Magazine Promo ONE PIECE Card Japanese",
+      "original_description": "SHIP ASAP\nALL NM\nprice for single, dm for more cards.",
+      "redacted_title": "Monkey D. Luffy Magazine Promo ONE PIECE Card Japanese",
+      "redacted_description": "SHIP ASAP ALL NM price for single dm for more cards.",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m19692896047_1.jpg?1772734248",
+        "https://u-mercari-images.mercdn.net/photos/m19692896047_2.jpg?1772734248",
+        "https://u-mercari-images.mercdn.net/photos/m19692896047_3.jpg?1772734248",
+        "https://u-mercari-images.mercdn.net/photos/m19692896047_4.jpg?1772734248"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m19692896047",
+        "source_url": "https://www.mercari.com/us/item/m19692896047/",
+        "title": "Monkey D. Luffy Magazine Promo ONE PIECE Card Japanese",
+        "description": "SHIP ASAP ALL NM price for single dm for more cards.",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_1.jpg?1772734248",
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_2.jpg?1772734248",
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_3.jpg?1772734248",
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_4.jpg?1772734248"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m19692896047",
+        "source_url": "https://www.mercari.com/us/item/m19692896047/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_1.jpg?1772734248",
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_2.jpg?1772734248",
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_3.jpg?1772734248",
+          "https://u-mercari-images.mercdn.net/photos/m19692896047_4.jpg?1772734248"
+        ]
+      }
+    },
+    {
+      "listing_id": "m42152982761",
+      "listing_url": "https://www.mercari.com/us/item/m42152982761/",
+      "source_query": "one piece magazine japanese",
+      "expected_card_code": "ST21-014",
+      "expected_language": "jp",
+      "listing_kind": "sealed",
+      "original_title": "one piece magazine vol 20 Japanese promo card game monkey D Luffy SR ST21-014",
+      "original_description": "one piece magazine vol 20 Japanese promo card game monkey D Luffy SR ST21-014 unopened sealed new",
+      "redacted_title": "one piece magazine vol 20 Japanese promo card game monkey D Luffy SR",
+      "redacted_description": "one piece magazine vol 20 Japanese promo card game monkey D Luffy SR unopened sealed new",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m42152982761_1.jpg?1772240253",
+        "https://u-mercari-images.mercdn.net/photos/m42152982761_2.jpg?1772240253",
+        "https://u-mercari-images.mercdn.net/photos/m42152982761_3.jpg?1772240253"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m42152982761",
+        "source_url": "https://www.mercari.com/us/item/m42152982761/",
+        "title": "one piece magazine vol 20 Japanese promo card game monkey D Luffy SR",
+        "description": "one piece magazine vol 20 Japanese promo card game monkey D Luffy SR unopened sealed new",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m42152982761_1.jpg?1772240253",
+          "https://u-mercari-images.mercdn.net/photos/m42152982761_2.jpg?1772240253",
+          "https://u-mercari-images.mercdn.net/photos/m42152982761_3.jpg?1772240253"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m42152982761",
+        "source_url": "https://www.mercari.com/us/item/m42152982761/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m42152982761_1.jpg?1772240253",
+          "https://u-mercari-images.mercdn.net/photos/m42152982761_2.jpg?1772240253",
+          "https://u-mercari-images.mercdn.net/photos/m42152982761_3.jpg?1772240253"
+        ]
+      }
+    },
+    {
+      "listing_id": "m45922385998",
+      "listing_url": "https://www.mercari.com/us/item/m45922385998/",
+      "source_query": "one piece magazine japanese",
+      "expected_card_code": "P-043",
+      "expected_language": "jp",
+      "listing_kind": "lot",
+      "original_title": "One Piece card game promo/card lot 5 card lot",
+      "original_description": "One Piece card game promo/card lot \n\nMonkey D. Luffy(JP) P-043\nNico Robin OP12-087\nMonkey D. luffy(parallel) OP13-001 \nMonkey D. Luffy(Magazine Promo) ST21-014 x2",
+      "redacted_title": "One Piece card game promo card lot 5 card lot",
+      "redacted_description": "One Piece card game promo card lot Monkey D. Luffy JP Nico Robin OP12 087 Monkey D. luffy parallel OP13 001 Monkey D. Luffy Magazine Promo ST21 014 x2",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_1.jpg?1772668688",
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_2.jpg?1772668688",
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_3.jpg?1772668688",
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_4.jpg?1772668688",
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_5.jpg?1772668688",
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_6.jpg?1772668688",
+        "https://u-mercari-images.mercdn.net/photos/m45922385998_7.jpg?1772668688"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m45922385998",
+        "source_url": "https://www.mercari.com/us/item/m45922385998/",
+        "title": "One Piece card game promo card lot 5 card lot",
+        "description": "One Piece card game promo card lot Monkey D. Luffy JP Nico Robin OP12 087 Monkey D. luffy parallel OP13 001 Monkey D. Luffy Magazine Promo ST21 014 x2",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_1.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_2.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_3.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_4.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_5.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_6.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_7.jpg?1772668688"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m45922385998",
+        "source_url": "https://www.mercari.com/us/item/m45922385998/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_1.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_2.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_3.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_4.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_5.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_6.jpg?1772668688",
+          "https://u-mercari-images.mercdn.net/photos/m45922385998_7.jpg?1772668688"
+        ]
+      }
+    },
+    {
+      "listing_id": "m47312756318",
+      "listing_url": "https://www.mercari.com/us/item/m47312756318/",
+      "source_query": "one piece card lot",
+      "expected_card_code": "OP01-013",
+      "expected_language": "en",
+      "listing_kind": "lot",
+      "original_title": "One Piece English Trading Card 100 pc Bulk (+holos)",
+      "original_description": "This is a bulk lot of 100 english One Piece TCG, includes at least:\n- 100 commons/uncommons\n- 10 Holos\n- 1 Super Rare\n\nCards mostly from OP01-013\n\nCard conditions are near mint\n\n*****I will try to keep duplicates to a minimum*****\n\nWilling to accept offers and bundle",
+      "redacted_title": "One Piece English Trading Card 100 pc Bulk +holos",
+      "redacted_description": "This is a bulk lot of 100 english One Piece TCG includes at least 100 commons uncommons 10 Holos 1 Super Rare Cards mostly from Card conditions are near mint I will try to keep duplicates to a minimum Willing to accept offers and bundle",
+      "image_urls": [
+        "https://u-mercari-images.mercdn.net/photos/m47312756318_1.jpg?1771881583"
+      ],
+      "request_redacted": {
+        "source": "mercari",
+        "source_listing_id": "m47312756318",
+        "source_url": "https://www.mercari.com/us/item/m47312756318/",
+        "title": "One Piece English Trading Card 100 pc Bulk +holos",
+        "description": "This is a bulk lot of 100 english One Piece TCG includes at least 100 commons uncommons 10 Holos 1 Super Rare Cards mostly from Card conditions are near mint I will try to keep duplicates to a minimum Willing to accept offers and bundle",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m47312756318_1.jpg?1771881583"
+        ]
+      },
+      "request_image_only": {
+        "source": "mercari",
+        "source_listing_id": "m47312756318",
+        "source_url": "https://www.mercari.com/us/item/m47312756318/",
+        "image_urls": [
+          "https://u-mercari-images.mercdn.net/photos/m47312756318_1.jpg?1771881583"
+        ]
+      }
+    }
+  ]
+}

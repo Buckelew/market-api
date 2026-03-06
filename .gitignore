@@ -1,0 +1,6 @@
+.DS_Store
+market-api.db
+tmp/
+state/
+*.log
+scripts/*.env
