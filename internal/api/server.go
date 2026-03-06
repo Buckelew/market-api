@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,13 +18,15 @@ type Server struct {
 	store            *db.Store
 	resolver         *resolve.Service
 	batchConcurrency int
+	authToken        string
 }
 
-func NewServer(store *db.Store, resolver *resolve.Service, batchConcurrency int) *Server {
+func NewServer(store *db.Store, resolver *resolve.Service, batchConcurrency int, authToken string) *Server {
 	return &Server{
 		store:            store,
 		resolver:         resolver,
 		batchConcurrency: batchConcurrency,
+		authToken:        strings.TrimSpace(authToken),
 	}
 }
 
@@ -34,7 +37,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/resolve/batch", s.handleResolveBatch)
 	mux.HandleFunc("GET /v1/requests/{id}", s.handleGetRequest)
 	mux.HandleFunc("GET /v1/results/{id}", s.handleGetResult)
-	return mux
+	return s.authMiddleware(mux)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -194,4 +197,46 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func (s *Server) authMiddleware(next http.Handler) http.Handler {
+	if s.authToken == "" {
+		return next
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if authorized(r, s.authToken) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		writeJSON(w, http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+	})
+}
+
+func authorized(r *http.Request, token string) bool {
+	if compareToken(r.Header.Get("X-API-Key"), token) {
+		return true
+	}
+
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		return compareToken(strings.TrimSpace(authHeader[7:]), token)
+	}
+
+	return false
+}
+
+func compareToken(got, want string) bool {
+	got = strings.TrimSpace(got)
+	want = strings.TrimSpace(want)
+	if got == "" || want == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }

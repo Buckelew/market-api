@@ -65,8 +65,9 @@ func main() {
 		CommandTimeout: cfg.CommandTimeout,
 	}
 	apiClient := &mercariwatch.MarketAPIClient{
-		BaseURL: cfg.MarketAPIBaseURL,
-		Client:  &http.Client{Timeout: cfg.ResolveTimeout},
+		BaseURL:   cfg.MarketAPIBaseURL,
+		Client:    &http.Client{Timeout: cfg.ResolveTimeout},
+		AuthToken: mercariwatch.EnvString("MARKET_API_AUTH_TOKEN", ""),
 	}
 	webhookClient := &http.Client{Timeout: cfg.WebhookTimeout}
 

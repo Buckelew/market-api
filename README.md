@@ -38,6 +38,7 @@ Environment variables:
 - `TESSERACT_BIN` default `tesseract`
 - `VISION_OCR_LANGS` default `eng+jpn`
 - `VISION_MAX_IMAGES` default `4`
+- `MARKET_API_AUTH_TOKEN` optional shared secret for all endpoints except `GET /healthz`
 
 `market-api` imports `github.com/Buckelew/card` directly as a private Go module.
 
@@ -72,6 +73,7 @@ Requirements:
 - `cari` authenticated for saved-query scans
 - `market-api` running locally or `MARKET_API_BASE_URL` pointed at a reachable instance
 - Discord webhook URLs
+- if `market-api` has `MARKET_API_AUTH_TOKEN` set, the monitor env must also set `MARKET_API_AUTH_TOKEN`
 
 Examples:
 

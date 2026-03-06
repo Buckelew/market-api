@@ -134,8 +134,9 @@ type BatchResolveResponse struct {
 }
 
 type MarketAPIClient struct {
-	BaseURL string
-	Client  *http.Client
+	BaseURL   string
+	Client    *http.Client
+	AuthToken string
 }
 
 func (c *CariClient) ScanSavedQueries(ctx context.Context, onlyNew bool, limit int) ([]SavedQueryScanResult, error) {
@@ -238,6 +239,10 @@ func (c *MarketAPIClient) ResolveBatch(ctx context.Context, requests []ResolveRe
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if token := strings.TrimSpace(c.AuthToken); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-API-Key", token)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

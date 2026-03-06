@@ -39,7 +39,7 @@ func New(cfg config.Config) (*App, error) {
 	cardClient := tcgplayer.NewClient(cfg.TCGPlayerCookie)
 	card := cardprovider.New(cardClient, cfg.CardSalesLimit)
 	resolver := resolve.NewService(store, classifier, vision, card)
-	server := api.NewServer(store, resolver, cfg.BatchConcurrency)
+	server := api.NewServer(store, resolver, cfg.BatchConcurrency, cfg.AuthToken)
 
 	return &App{
 		db:      database,

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,6 +19,7 @@ type Config struct {
 	TesseractBin     string
 	VisionOCRLangs   string
 	VisionMaxImages  int
+	AuthToken        string
 }
 
 func Load() (Config, error) {
@@ -30,6 +33,7 @@ func Load() (Config, error) {
 		TesseractBin:     envOrDefault("TESSERACT_BIN", "tesseract"),
 		VisionOCRLangs:   envOrDefault("VISION_OCR_LANGS", "eng+jpn"),
 		VisionMaxImages:  4,
+		AuthToken:        strings.TrimSpace(os.Getenv("MARKET_API_AUTH_TOKEN")),
 	}
 
 	if raw := os.Getenv("BATCH_CONCURRENCY"); raw != "" {
@@ -57,6 +61,14 @@ func Load() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func GenerateAuthToken() (string, error) {
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
 }
 
 func envOrDefault(key, fallback string) string {
