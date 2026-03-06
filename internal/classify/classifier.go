@@ -12,6 +12,8 @@ import (
 var cardCodePattern = regexp.MustCompile(`(?i)\b((?:OP|ST|EB|PRB)\s?\d{1,2}|P)[-\s_]?(\d{2,3})\b`)
 var setCodePattern = regexp.MustCompile(`(?i)\b(OP|ST|EB|PRB)[-\s]?(\d{1,2})\b`)
 var quantityPattern = regexp.MustCompile(`(?i)\b(\d+)\s*(?:x|×)?\s*(box|boxes|pack|packs|deck|decks|collection|collections)\b`)
+var lotPattern = regexp.MustCompile(`(?i)\b(lot|bulk|bundle|playset|set of|collection of)\b`)
+var unsealedPattern = regexp.MustCompile(`(?i)\b(unsealed|opened|open box|no cards|cards removed|empty)\b`)
 
 type setNameAlias struct {
 	Canonical string
@@ -46,8 +48,12 @@ func (c *Classifier) Classify(title, description string) (models.Classification,
 	reasons := make([]string, 0, 2)
 	signals := models.Signals{}
 
-	if code := ExtractOnePieceCardCode(combined); code != "" {
-		signals.CardCode = code
+	allCodes := ExtractAllOnePieceCardCodes(combined)
+	if len(allCodes) > 0 {
+		signals.CardCode = allCodes[0]
+		if len(allCodes) > 1 {
+			signals.CardCodes = allCodes
+		}
 		reasons = append(reasons, "detected One Piece card code in listing text")
 	}
 	if setCode := ExtractOnePieceSetCode(combined); setCode != "" {
@@ -57,19 +63,57 @@ func (c *Classifier) Classify(title, description string) (models.Classification,
 		signals.SetName = setName
 	}
 	signals.SealedType = detectSealedType(combined)
+	signals.LotType = detectLotType(combined)
 	signals.Language = detectLanguage(combined)
 	signals.Quantity = detectQuantity(combined)
+	isUnsealed := detectUnsealed(combined)
 
 	hasOnePiece := strings.Contains(lowered, "one piece")
 	hasCardTerms := strings.Contains(lowered, "tcg") || strings.Contains(lowered, "trading card") || strings.Contains(lowered, "single")
 
 	switch {
-	case signals.CardCode != "":
+	case signals.SealedType != "" && isUnsealed:
+		reasons = append(reasons, "listing appears to be an unsealed/opened product")
+		return models.Classification{
+			ProductType: "unknown",
+			Category:    "unknown",
+			Market:      "unknown",
+			Confidence:  0.15,
+			Reasons:     reasons,
+		}, signals
+	case signals.LotType != "" && len(signals.CardCodes) > 1:
+		reasons = append(reasons, "listing appears to be a card lot with multiple identifiable cards")
+		return models.Classification{
+			ProductType: "card_lot",
+			Category:    "one_piece_tcg",
+			Market:      "tcgplayer",
+			Confidence:  0.90,
+			Reasons:     reasons,
+		}, signals
+	case signals.LotType != "" && (hasOnePiece || signals.SetCode != ""):
+		reasons = append(reasons, "listing appears to be a card lot")
+		return models.Classification{
+			ProductType: "card_lot",
+			Category:    "one_piece_tcg",
+			Market:      "tcgplayer",
+			Confidence:  0.70,
+			Reasons:     reasons,
+		}, signals
+	case signals.CardCode != "" && len(signals.CardCodes) <= 1:
 		return models.Classification{
 			ProductType: "trading_card",
 			Category:    "one_piece_tcg",
 			Market:      "tcgplayer",
 			Confidence:  0.97,
+			Reasons:     reasons,
+		}, signals
+	case signals.CardCode != "" && len(signals.CardCodes) > 1:
+		reasons = append(reasons, "detected multiple card codes in listing text")
+		return models.Classification{
+			ProductType: "card_lot",
+			Category:    "one_piece_tcg",
+			Market:      "tcgplayer",
+			Confidence:  0.88,
 			Reasons:     reasons,
 		}, signals
 	case signals.SealedType != "" && (hasOnePiece || signals.SetCode != ""):
@@ -238,6 +282,83 @@ func detectQuantity(text string) int {
 	}
 
 	return value
+}
+
+func ExtractAllOnePieceCardCodes(text string) []string {
+	upper := strings.ToUpper(strings.TrimSpace(text))
+	matches := cardCodePattern.FindAllStringSubmatch(upper, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) != 3 {
+			continue
+		}
+		rawSet := strings.ReplaceAll(match[1], " ", "")
+		numberValue, err := strconv.Atoi(match[2])
+		if err != nil {
+			continue
+		}
+		var code string
+		if rawSet == "P" {
+			code = fmt.Sprintf("P-%03d", numberValue)
+		} else {
+			prefixEnd := 0
+			for prefixEnd < len(rawSet) && rawSet[prefixEnd] >= 'A' && rawSet[prefixEnd] <= 'Z' {
+				prefixEnd++
+			}
+			if prefixEnd == 0 || prefixEnd == len(rawSet) {
+				continue
+			}
+			setValue, err := strconv.Atoi(rawSet[prefixEnd:])
+			if err != nil {
+				continue
+			}
+			code = fmt.Sprintf("%s%02d-%03d", rawSet[:prefixEnd], setValue, numberValue)
+		}
+		if _, ok := seen[code]; ok {
+			continue
+		}
+		seen[code] = struct{}{}
+		out = append(out, code)
+	}
+	return out
+}
+
+func DetectLotType(text string) string {
+	return detectLotType(text)
+}
+
+func DetectUnsealed(text string) bool {
+	return detectUnsealed(text)
+}
+
+func detectLotType(text string) string {
+	match := lotPattern.FindStringSubmatch(strings.ToLower(strings.TrimSpace(text)))
+	if len(match) < 2 {
+		return ""
+	}
+	switch strings.ToLower(match[1]) {
+	case "lot":
+		return "lot"
+	case "bulk":
+		return "bulk"
+	case "bundle":
+		return "bundle"
+	case "playset":
+		return "playset"
+	case "set of", "collection of":
+		return "lot"
+	default:
+		return ""
+	}
+}
+
+func detectUnsealed(text string) bool {
+	return unsealedPattern.MatchString(strings.ToLower(strings.TrimSpace(text)))
 }
 
 func normalizeSetNameText(text string) string {

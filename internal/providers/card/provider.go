@@ -257,16 +257,22 @@ func cardCandidatePreference(query string, candidate tcgplayer.MatchCandidate) i
 	}
 
 	for _, variant := range []struct {
-		token     string
-		candidate string
+		token      string
+		candidates []string
 	}{
-		{token: "parallel", candidate: "parallel"},
-		{token: "sp", candidate: " sp "},
-		{token: "reprint", candidate: "reprint"},
-		{token: "japanese", candidate: "japanese"},
+		{token: "parallel", candidates: []string{"parallel", "alternate art"}},
+		{token: "sp", candidates: []string{" sp "}},
+		{token: "reprint", candidates: []string{"reprint"}},
+		{token: "japanese", candidates: []string{"japanese"}},
 	} {
 		queryHas := strings.Contains(queryText, " "+variant.token+" ")
-		candidateHas := strings.Contains(" "+name+" ", variant.candidate)
+		candidateHas := false
+		for _, c := range variant.candidates {
+			if strings.Contains(" "+name+" ", c) {
+				candidateHas = true
+				break
+			}
+		}
 		if candidateHas && !queryHas {
 			score -= 320
 		}
@@ -276,6 +282,7 @@ func cardCandidatePreference(query string, candidate tcgplayer.MatchCandidate) i
 	}
 
 	if !strings.Contains(" "+name+" ", " parallel ") &&
+		!strings.Contains(name, "alternate art") &&
 		!strings.Contains(" "+name+" ", " sp ") &&
 		!strings.Contains(name, "reprint") &&
 		!strings.Contains(name, "japanese") {

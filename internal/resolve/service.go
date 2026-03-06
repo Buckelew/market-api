@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -30,6 +31,12 @@ type Service struct {
 	card       cardLookupProvider
 }
 
+var (
+	resolveTimeout        = 20 * time.Second
+	visionAnalysisTimeout = 8 * time.Second
+	cardLookupTimeout     = 8 * time.Second
+)
+
 func NewService(store *db.Store, classifier *classify.Classifier, vision visionProvider, card cardLookupProvider) *Service {
 	return &Service{
 		store:      store,
@@ -40,6 +47,9 @@ func NewService(store *db.Store, classifier *classify.Classifier, vision visionP
 }
 
 func (s *Service) Resolve(ctx context.Context, input models.ResolveRequestInput) (*models.ResolveResponse, error) {
+	ctx, cancel := withTimeoutCap(ctx, resolveTimeout)
+	defer cancel()
+
 	normalized := normalizeInput(input)
 	fingerprint := fingerprint(normalized)
 
@@ -62,7 +72,9 @@ func (s *Service) Resolve(ctx context.Context, input models.ResolveRequestInput)
 	}
 
 	if len(normalized.ImageURLs) > 0 && s.vision != nil {
-		visionResult, err := s.vision.AnalyzeOnePiece(ctx, input.Title, input.Description, normalized.ImageURLs)
+		visionCtx, visionCancel := withTimeoutCap(ctx, visionAnalysisTimeout)
+		visionResult, err := s.vision.AnalyzeOnePiece(visionCtx, input.Title, input.Description, normalized.ImageURLs)
+		visionCancel()
 		if err != nil {
 			warnings = append(warnings, "image analysis failed: "+err.Error())
 		} else if visionResult != nil {
@@ -76,11 +88,23 @@ func (s *Service) Resolve(ctx context.Context, input models.ResolveRequestInput)
 		}
 	}
 
+	var marketMatches []models.MarketMatch
+
 	if classification.Category == "one_piece_tcg" && s.card != nil {
 		marketMatch.Provider = "card"
 
 		if shouldSkipTCGPlayerLookup(signals) {
 			warnings = append(warnings, "image analysis suggests a Japanese printing; skipping TCGplayer lookup")
+		} else if classification.ProductType == "card_lot" {
+			codes := effectiveCardCodes(signals)
+			if len(codes) == 0 {
+				warnings = append(warnings, "card lot detected but no card codes found")
+			} else {
+				marketMatches, warnings, providerResults = s.lookupMultipleCards(ctx, input, normalized, signals, codes, warnings, providerResults)
+				if len(marketMatches) > 0 {
+					marketMatch = aggregateMarketMatches(marketMatches)
+				}
+			}
 		} else if classification.ProductType == "sealed_product" && !shouldLookupSealed(signals) {
 			warnings = append(warnings, "insufficient sealed set signals; skipping generic TCGplayer sealed lookup")
 		} else {
@@ -91,9 +115,13 @@ func (s *Service) Resolve(ctx context.Context, input models.ResolveRequestInput)
 				var err error
 				switch classification.ProductType {
 				case "sealed_product":
-					lookup, err = s.card.LookupOnePieceSealed(ctx, query)
+					lookupCtx, lookupCancel := withTimeoutCap(ctx, cardLookupTimeout)
+					lookup, err = s.card.LookupOnePieceSealed(lookupCtx, query)
+					lookupCancel()
 				default:
-					lookup, err = s.card.LookupOnePieceCard(ctx, query)
+					lookupCtx, lookupCancel := withTimeoutCap(ctx, cardLookupTimeout)
+					lookup, err = s.card.LookupOnePieceCard(lookupCtx, query)
+					lookupCancel()
 				}
 				if err != nil {
 					warnings = append(warnings, "card lookup failed: "+err.Error())
@@ -112,6 +140,7 @@ func (s *Service) Resolve(ctx context.Context, input models.ResolveRequestInput)
 		Classification: classification,
 		Signals:        signals,
 		MarketMatch:    marketMatch,
+		MarketMatches:  marketMatches,
 		Warnings:       warnings,
 	}
 
@@ -228,6 +257,7 @@ func mergeSignals(existing, incoming models.Signals) models.Signals {
 	if existing.CardCode == "" && incoming.CardCode != "" {
 		existing.CardCode = incoming.CardCode
 	}
+	existing.CardCodes = mergeCardCodes(existing.CardCodes, incoming.CardCodes)
 	if existing.SetCode == "" && incoming.SetCode != "" {
 		existing.SetCode = incoming.SetCode
 	}
@@ -236,6 +266,9 @@ func mergeSignals(existing, incoming models.Signals) models.Signals {
 	}
 	if existing.SealedType == "" && incoming.SealedType != "" {
 		existing.SealedType = incoming.SealedType
+	}
+	if existing.LotType == "" && incoming.LotType != "" {
+		existing.LotType = incoming.LotType
 	}
 	if existing.Language == "" && incoming.Language != "" {
 		existing.Language = incoming.Language
@@ -250,13 +283,57 @@ func mergeSignals(existing, incoming models.Signals) models.Signals {
 	return existing
 }
 
+func mergeCardCodes(existing, incoming []string) []string {
+	if len(existing) == 0 && len(incoming) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(existing)+len(incoming))
+	for _, code := range existing {
+		if _, ok := seen[code]; !ok {
+			seen[code] = struct{}{}
+			out = append(out, code)
+		}
+	}
+	for _, code := range incoming {
+		if _, ok := seen[code]; !ok {
+			seen[code] = struct{}{}
+			out = append(out, code)
+		}
+	}
+	if len(out) <= 1 {
+		return nil
+	}
+	return out
+}
+
 func mergeClassification(existing models.Classification, normalized models.ResolveRequestInput, signals models.Signals, visionResult *models.VisionAnalysisResult) models.Classification {
 	if visionResult == nil {
 		return existing
 	}
 
-	if visionResult.Signals.CardCode != "" {
+	if len(signals.CardCodes) > 1 && (signals.LotType != "" || existing.ProductType == "card_lot") {
+		existing.ProductType = "card_lot"
+		existing.Category = "one_piece_tcg"
+		existing.Market = "tcgplayer"
+		if existing.Confidence < 0.88 {
+			existing.Confidence = 0.88
+		}
+	} else if len(signals.CardCodes) > 1 && existing.ProductType == "unknown" {
+		existing.ProductType = "card_lot"
+		existing.Category = "one_piece_tcg"
+		existing.Market = "tcgplayer"
+		if existing.Confidence < 0.80 {
+			existing.Confidence = 0.80
+		}
+	} else if visionResult.Signals.CardCode != "" && len(signals.CardCodes) <= 1 {
 		existing.ProductType = "trading_card"
+		existing.Category = "one_piece_tcg"
+		existing.Market = "tcgplayer"
+		if existing.Confidence < 0.96 {
+			existing.Confidence = 0.96
+		}
+	} else if visionResult.Signals.CardCode != "" {
 		existing.Category = "one_piece_tcg"
 		existing.Market = "tcgplayer"
 		if existing.Confidence < 0.96 {
@@ -298,8 +375,97 @@ func mergeClassification(existing models.Classification, normalized models.Resol
 	return existing
 }
 
+func effectiveCardCodes(signals models.Signals) []string {
+	if len(signals.CardCodes) > 0 {
+		return signals.CardCodes
+	}
+	if signals.CardCode != "" {
+		return []string{signals.CardCode}
+	}
+	return nil
+}
+
+func (s *Service) lookupMultipleCards(
+	ctx context.Context,
+	raw, normalized models.ResolveRequestInput,
+	signals models.Signals,
+	codes []string,
+	warnings []string,
+	providerResults []models.ProviderResult,
+) ([]models.MarketMatch, []string, []models.ProviderResult) {
+	matches := make([]models.MarketMatch, 0, len(codes))
+	for _, code := range codes {
+		perCardSignals := models.Signals{
+			CardCode: code,
+			SetCode:  signals.SetCode,
+			SetName:  signals.SetName,
+			Language: signals.Language,
+		}
+		query := tradingCardProviderQuery(raw, normalized, perCardSignals)
+		if query == "" {
+			continue
+		}
+		lookupCtx, lookupCancel := withTimeoutCap(ctx, cardLookupTimeout)
+		lookup, err := s.card.LookupOnePieceCard(lookupCtx, query)
+		lookupCancel()
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("card lookup failed for %s: %s", code, err.Error()))
+			continue
+		}
+		if lookup == nil || !lookup.MarketMatch.Matched {
+			warnings = append(warnings, fmt.Sprintf("no match found for %s", code))
+			continue
+		}
+		matches = append(matches, lookup.MarketMatch)
+		providerResults = append(providerResults, lookup.ProviderResult)
+	}
+	return matches, warnings, providerResults
+}
+
+func aggregateMarketMatches(matches []models.MarketMatch) models.MarketMatch {
+	if len(matches) == 0 {
+		return models.MarketMatch{Matched: false, Provider: "card", Market: "tcgplayer"}
+	}
+
+	totalMarketPrice := 0.0
+	totalRecentSale := 0.0
+	minConfidence := 1.0
+	names := make([]string, 0, len(matches))
+
+	for _, m := range matches {
+		totalMarketPrice += m.MarketPrice
+		totalRecentSale += m.RecentMedianSale
+		if m.Confidence < minConfidence {
+			minConfidence = m.Confidence
+		}
+		if m.ProductName != "" {
+			names = append(names, m.CardNumber)
+		}
+	}
+
+	return models.MarketMatch{
+		Matched:          true,
+		Provider:         "card",
+		Market:           "tcgplayer",
+		ProductName:      fmt.Sprintf("%d cards: %s", len(matches), strings.Join(names, ", ")),
+		MarketPrice:      totalMarketPrice,
+		RecentMedianSale: totalRecentSale,
+		Confidence:       minConfidence,
+	}
+}
+
 func shouldSkipTCGPlayerLookup(signals models.Signals) bool {
 	return signals.ImageLanguage == "jp" && signals.ImageConfidence >= 0.7
+}
+
+func withTimeoutCap(ctx context.Context, max time.Duration) (context.Context, context.CancelFunc) {
+	if max <= 0 {
+		return ctx, func() {}
+	}
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= max {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, max)
 }
 
 func shouldLookupSealed(signals models.Signals) bool {

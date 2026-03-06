@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"market-api/internal/classify"
 	"market-api/internal/db"
@@ -15,6 +16,10 @@ type fakeCardProvider struct {
 	sealedQueries []string
 	cardResult    *models.ProviderLookupResult
 	sealedResult  *models.ProviderLookupResult
+	cardErr       error
+	sealedErr     error
+	blockCard     bool
+	blockSealed   bool
 }
 
 type fakeVisionProvider struct {
@@ -26,14 +31,22 @@ func (f *fakeVisionProvider) AnalyzeOnePiece(_ context.Context, _, _ string, _ [
 	return f.result, f.err
 }
 
-func (f *fakeCardProvider) LookupOnePieceCard(_ context.Context, query string) (*models.ProviderLookupResult, error) {
+func (f *fakeCardProvider) LookupOnePieceCard(ctx context.Context, query string) (*models.ProviderLookupResult, error) {
 	f.cardQueries = append(f.cardQueries, query)
-	return f.cardResult, nil
+	if f.blockCard {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return f.cardResult, f.cardErr
 }
 
-func (f *fakeCardProvider) LookupOnePieceSealed(_ context.Context, query string) (*models.ProviderLookupResult, error) {
+func (f *fakeCardProvider) LookupOnePieceSealed(ctx context.Context, query string) (*models.ProviderLookupResult, error) {
 	f.sealedQueries = append(f.sealedQueries, query)
-	return f.sealedResult, nil
+	if f.blockSealed {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return f.sealedResult, f.sealedErr
 }
 
 func TestResolveUsesCardLookupForTradingCards(t *testing.T) {
@@ -265,6 +278,68 @@ func TestResolveSkipsGenericSealedLookupWithoutSetSignals(t *testing.T) {
 	}
 }
 
+func TestResolveCardLotLoopsOverMultipleCodes(t *testing.T) {
+	store := newTestStore(t)
+	provider := &fakeCardProvider{
+		cardResult: &models.ProviderLookupResult{
+			MarketMatch: models.MarketMatch{
+				Matched:          true,
+				Provider:         "card",
+				Market:           "tcgplayer",
+				ProductID:        "1",
+				ProductName:      "Test Card",
+				CardNumber:       "OP14-033",
+				MarketPrice:      5.00,
+				RecentMedianSale: 4.50,
+				Confidence:       0.98,
+			},
+			ProviderResult: models.ProviderResult{Provider: "card", Market: "tcgplayer", Query: "OP14-033"},
+		},
+	}
+	service := NewService(store, classify.New(), nil, provider)
+
+	response, err := service.Resolve(context.Background(), models.ResolveRequestInput{
+		Title: "One Piece card lot OP14-033 OP14-055 OP14-112",
+	})
+	if err != nil {
+		t.Fatalf("Resolve returned error: %v", err)
+	}
+	if response.Classification.ProductType != "card_lot" {
+		t.Fatalf("expected card_lot, got %q", response.Classification.ProductType)
+	}
+	if len(provider.cardQueries) != 3 {
+		t.Fatalf("expected 3 card lookups, got %d: %v", len(provider.cardQueries), provider.cardQueries)
+	}
+	if len(response.MarketMatches) != 3 {
+		t.Fatalf("expected 3 market matches, got %d", len(response.MarketMatches))
+	}
+	if response.MarketMatch.MarketPrice != 15.00 {
+		t.Fatalf("expected aggregated market price 15.00, got %.2f", response.MarketMatch.MarketPrice)
+	}
+}
+
+func TestResolveUnsealedBoxSkipsLookup(t *testing.T) {
+	store := newTestStore(t)
+	provider := &fakeCardProvider{}
+	service := NewService(store, classify.New(), nil, provider)
+
+	response, err := service.Resolve(context.Background(), models.ResolveRequestInput{
+		Title: "One Piece OP14 Booster Box -unsealed",
+	})
+	if err != nil {
+		t.Fatalf("Resolve returned error: %v", err)
+	}
+	if response.Classification.ProductType != "unknown" {
+		t.Fatalf("expected unknown for unsealed box, got %q", response.Classification.ProductType)
+	}
+	if len(provider.cardQueries) != 0 {
+		t.Fatalf("expected no card lookups for unsealed box, got %d", len(provider.cardQueries))
+	}
+	if len(provider.sealedQueries) != 0 {
+		t.Fatalf("expected no sealed lookups for unsealed box, got %d", len(provider.sealedQueries))
+	}
+}
+
 func TestProviderQueryEnrichesCardCodeWithSetName(t *testing.T) {
 	query := providerQuery(
 		models.ResolveRequestInput{Title: "One Piece Sabo - 500 Years in the Future OP07-118 Secret Rare"},
@@ -275,6 +350,35 @@ func TestProviderQueryEnrichesCardCodeWithSetName(t *testing.T) {
 
 	if query != "OP07-118 500 Years in the Future" {
 		t.Fatalf("providerQuery() = %q, want %q", query, "OP07-118 500 Years in the Future")
+	}
+}
+
+func TestResolveTimesOutSlowCardLookup(t *testing.T) {
+	store := newTestStore(t)
+	provider := &fakeCardProvider{blockCard: true}
+	service := NewService(store, classify.New(), nil, provider)
+
+	oldResolveTimeout := resolveTimeout
+	oldCardLookupTimeout := cardLookupTimeout
+	resolveTimeout = 50 * time.Millisecond
+	cardLookupTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		resolveTimeout = oldResolveTimeout
+		cardLookupTimeout = oldCardLookupTimeout
+	})
+
+	response, err := service.Resolve(context.Background(), models.ResolveRequestInput{Title: "OP14-033 Perona"})
+	if err != nil {
+		t.Fatalf("Resolve returned error: %v", err)
+	}
+	if len(provider.cardQueries) != 1 {
+		t.Fatalf("expected card lookup once, got %d", len(provider.cardQueries))
+	}
+	if len(response.Warnings) == 0 {
+		t.Fatal("expected timeout warning, got none")
+	}
+	if got := response.Warnings[0]; got != "card lookup failed: context deadline exceeded" {
+		t.Fatalf("warning = %q, want %q", got, "card lookup failed: context deadline exceeded")
 	}
 }
 

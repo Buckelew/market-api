@@ -83,3 +83,34 @@ func TestSelectPreferredCardCandidateKeepsRequestedSpecialVariant(t *testing.T) 
 		t.Fatalf("selectPreferredCardCandidate() product id = %d, want 545919", int(chosen.Product.ProductID))
 	}
 }
+
+func TestSelectPreferredCardCandidatePrefersBaseOverAlternateArt(t *testing.T) {
+	t.Parallel()
+
+	candidates := []tcgplayer.MatchCandidate{
+		{
+			Product: tcgplayer.SearchProduct{
+				ProductID:   670254,
+				ProductName: "Nami (Alternate Art)",
+				SetName:     "The Azure Sea's Seven",
+			},
+			Score: 135,
+		},
+		{
+			Product: tcgplayer.SearchProduct{
+				ProductID:   670200,
+				ProductName: "Nami",
+				SetName:     "The Azure Sea's Seven",
+			},
+			Score: 135,
+		},
+	}
+
+	chosen := selectPreferredCardCandidate("OP14-031 The Azure Sea's Seven", candidates)
+	if chosen == nil {
+		t.Fatal("selectPreferredCardCandidate() returned nil")
+	}
+	if int(chosen.Product.ProductID) != 670200 {
+		t.Fatalf("selectPreferredCardCandidate() product id = %d, want 670200 (base Nami), got alternate art", int(chosen.Product.ProductID))
+	}
+}

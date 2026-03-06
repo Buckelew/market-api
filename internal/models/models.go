@@ -19,14 +19,16 @@ type Classification struct {
 }
 
 type Signals struct {
-	CardCode        string  `json:"card_code,omitempty"`
-	SetCode         string  `json:"set_code,omitempty"`
-	SetName         string  `json:"set_name,omitempty"`
-	SealedType      string  `json:"sealed_type,omitempty"`
-	Language        string  `json:"language,omitempty"`
-	Quantity        int     `json:"quantity,omitempty"`
-	ImageLanguage   string  `json:"image_language,omitempty"`
-	ImageConfidence float64 `json:"image_confidence,omitempty"`
+	CardCode        string   `json:"card_code,omitempty"`
+	CardCodes       []string `json:"card_codes,omitempty"`
+	SetCode         string   `json:"set_code,omitempty"`
+	SetName         string   `json:"set_name,omitempty"`
+	SealedType      string   `json:"sealed_type,omitempty"`
+	LotType         string   `json:"lot_type,omitempty"`
+	Language        string   `json:"language,omitempty"`
+	Quantity        int      `json:"quantity,omitempty"`
+	ImageLanguage   string   `json:"image_language,omitempty"`
+	ImageConfidence float64  `json:"image_confidence,omitempty"`
 }
 
 type MarketMatch struct {
@@ -47,6 +49,7 @@ type ResolveResponse struct {
 	Classification Classification `json:"classification"`
 	Signals        Signals        `json:"signals"`
 	MarketMatch    MarketMatch    `json:"market_match"`
+	MarketMatches  []MarketMatch  `json:"market_matches,omitempty"`
 	Warnings       []string       `json:"warnings"`
 }
 

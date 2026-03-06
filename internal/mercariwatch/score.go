@@ -33,12 +33,18 @@ func ScoreResolvedDeal(priceCents int, shippingCents *int, response *ResolveResp
 		reasons = append(reasons, "no TCGplayer match found")
 	}
 
-	expectedSale := chooseExpectedSale(response.MarketMatch)
+	var expectedSale float64
+	var confidence float64
+	if len(response.MarketMatches) > 0 {
+		expectedSale = combinedExpectedSale(response.MarketMatches)
+		confidence = minMatchConfidence(response.MarketMatches)
+	} else {
+		expectedSale = chooseExpectedSale(response.MarketMatch)
+		confidence = response.MarketMatch.Confidence
+	}
 	if expectedSale <= 0 {
 		reasons = append(reasons, "no expected sale from market data")
 	}
-
-	confidence := response.MarketMatch.Confidence
 	if confidence <= 0 {
 		confidence = response.Classification.Confidence
 	}
@@ -72,6 +78,27 @@ func ScoreResolvedDeal(priceCents int, shippingCents *int, response *ResolveResp
 		Pass:            len(reasons) == 0,
 		Reasons:         reasons,
 	}
+}
+
+func combinedExpectedSale(matches []MarketMatch) float64 {
+	total := 0.0
+	for _, m := range matches {
+		total += chooseExpectedSale(m)
+	}
+	return total
+}
+
+func minMatchConfidence(matches []MarketMatch) float64 {
+	if len(matches) == 0 {
+		return 0
+	}
+	min := matches[0].Confidence
+	for _, m := range matches[1:] {
+		if m.Confidence < min {
+			min = m.Confidence
+		}
+	}
+	return min
 }
 
 func chooseExpectedSale(match MarketMatch) float64 {

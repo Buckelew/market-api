@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"sort"
 	"image/png"
 	"io"
 	"net/http"
@@ -144,6 +145,7 @@ func (p *Provider) AnalyzeOnePiece(ctx context.Context, title, description strin
 	}
 
 	selectedCode := selectBestCode(codeScore, codeOrder)
+	allCodes := selectAllCodes(codeScore, codeOrder)
 	selectedSetCode := selectBestString(setCodeScore, setCodeOrder)
 	selectedSetName := selectBestString(setNameScore, setNameOrder)
 	selectedSealedType := selectBestString(sealedTypeScore, sealedTypeOrder)
@@ -174,6 +176,7 @@ func (p *Provider) AnalyzeOnePiece(ctx context.Context, title, description strin
 		"description":   description,
 		"observations":  observations,
 		"selected_code": selectedCode,
+		"all_codes":     allCodes,
 		"set_code":      selectedSetCode,
 		"set_name":      selectedSetName,
 		"sealed_type":   selectedSealedType,
@@ -204,6 +207,7 @@ func (p *Provider) AnalyzeOnePiece(ctx context.Context, title, description strin
 
 	signals := models.Signals{
 		CardCode:   selectedCode,
+		CardCodes:  allCodes,
 		SetCode:    selectedSetCode,
 		SetName:    selectedSetName,
 		SealedType: selectedSealedType,
@@ -434,6 +438,18 @@ func extractCodes(text string) []string {
 	}
 
 	slices.Sort(out)
+	return out
+}
+
+func selectAllCodes(score map[string]int, order []string) []string {
+	if len(order) <= 1 {
+		return nil
+	}
+	out := make([]string, len(order))
+	copy(out, order)
+	sort.Slice(out, func(i, j int) bool {
+		return score[out[i]] > score[out[j]]
+	})
 	return out
 }
 

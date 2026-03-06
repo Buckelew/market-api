@@ -97,6 +97,9 @@ func BuildFindingPayload(username, label string, listing *Listing, response *Res
 				field("Recent Sale", dollars(response.MarketMatch.RecentMedianSale), true),
 			)
 		}
+		if len(response.MarketMatches) > 0 {
+			fields = append(fields, field("Card Matches", multiMatchText(response.MarketMatches), false))
+		}
 		if warnings := warningsText(response.Warnings); warnings != "" {
 			fields = append(fields, field("Warnings", warnings, false))
 		}
@@ -155,11 +158,15 @@ func BuildDealPayload(username, label string, listing *Listing, response *Resolv
 		fields = append(fields, field("Source", label, false))
 	}
 	if response != nil {
-		fields = append(fields,
-			field("Card Match", fallback(response.MarketMatch.ProductName, "Unknown"), false),
-			field("TCGplayer", tcgPlayerLink(response.MarketMatch.ProductID), false),
-			field("Card Code", fallback(response.Signals.CardCode, "none"), true),
-		)
+		if len(response.MarketMatches) > 0 {
+			fields = append(fields, field("Card Matches", multiMatchText(response.MarketMatches), false))
+		} else {
+			fields = append(fields,
+				field("Card Match", fallback(response.MarketMatch.ProductName, "Unknown"), false),
+				field("TCGplayer", tcgPlayerLink(response.MarketMatch.ProductID), false),
+			)
+		}
+		fields = append(fields, field("Card Code", fallback(response.Signals.CardCode, "none"), true))
 	}
 
 	embed := map[string]any{
@@ -191,6 +198,15 @@ func classificationText(response *ResolveResponse) string {
 	}
 	category := fallback(response.Classification.Category, "unknown")
 	return fmt.Sprintf("%s (%.2f)", category, response.Classification.Confidence)
+}
+
+func multiMatchText(matches []MarketMatch) string {
+	lines := make([]string, 0, len(matches))
+	for _, m := range matches {
+		name := fallback(m.CardNumber, m.ProductName)
+		lines = append(lines, fmt.Sprintf("- %s: %s (mkt) / %s (sale)", name, dollars(m.MarketPrice), dollars(m.RecentMedianSale)))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func matchText(match MarketMatch) string {
