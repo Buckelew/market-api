@@ -403,6 +403,9 @@ func (s *Service) lookupMultipleCards(
 			SetCode:  signals.SetCode,
 			SetName:  signals.SetName,
 			Language: signals.Language,
+			// Variant intentionally omitted for lots — a single image-level
+			// variant doesn't apply to each card individually. Each card
+			// defaults to base unless the listing text provides a hint.
 		}
 		query := tradingCardProviderQuery(raw, normalized, perCardSignals)
 		if query == "" {

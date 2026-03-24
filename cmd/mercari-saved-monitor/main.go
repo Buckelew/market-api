@@ -36,6 +36,8 @@ type config struct {
 	GeneralWebhookURL string
 	DealsWebhookURL   string
 
+	Category string
+
 	DealParams mercariwatch.DealParams
 }
 
@@ -114,7 +116,7 @@ func main() {
 			listing = mercariwatch.ListingFromSearchItem(cand.Item)
 		}
 		listings = append(listings, listing)
-		requests = append(requests, buildResolveRequest(listing))
+		requests = append(requests, buildResolveRequest(listing, cfg.Category))
 	}
 
 	resultsByIndex, err := apiClient.ResolveBatch(ctx, requests)
@@ -198,6 +200,7 @@ func loadConfig() config {
 		DiscordUsername:       mercariwatch.EnvString("DISCORD_USERNAME", "Mercari Saved Monitor"),
 		GeneralWebhookURL:     strings.TrimSpace(mercariwatch.EnvString("GENERAL_WEBHOOK_URL", "")),
 		DealsWebhookURL:       strings.TrimSpace(mercariwatch.EnvString("DEALS_WEBHOOK_URL", "")),
+		Category: mercariwatch.EnvString("CATEGORY", ""),
 		DealParams: mercariwatch.DealParams{
 			MinROI:             mercariwatch.EnvFloat("MIN_ROI", 0.30),
 			MinConfidence:      mercariwatch.EnvFloat("MIN_CONFIDENCE", 0.80),
@@ -242,7 +245,7 @@ func pendingCandidates(candidates map[string]candidate, state *mercariwatch.Stat
 	return out
 }
 
-func buildResolveRequest(listing *mercariwatch.Listing) mercariwatch.ResolveRequestInput {
+func buildResolveRequest(listing *mercariwatch.Listing, category string) mercariwatch.ResolveRequestInput {
 	if listing == nil {
 		return mercariwatch.ResolveRequestInput{}
 	}
@@ -259,6 +262,7 @@ func buildResolveRequest(listing *mercariwatch.Listing) mercariwatch.ResolveRequ
 		Description:     listing.Description,
 		ImageURL:        imageURL,
 		ImageURLs:       imageURLs,
+		Category:        category,
 	}
 }
 

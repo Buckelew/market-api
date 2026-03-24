@@ -85,6 +85,7 @@ type ResolveRequestInput struct {
 	Description     string   `json:"description,omitempty"`
 	ImageURL        string   `json:"image_url,omitempty"`
 	ImageURLs       []string `json:"image_urls,omitempty"`
+	Category        string   `json:"category,omitempty"`
 }
 
 type Classification struct {

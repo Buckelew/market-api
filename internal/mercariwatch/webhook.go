@@ -88,17 +88,29 @@ func BuildFindingPayload(username, label string, listing *Listing, response *Res
 	if response != nil {
 		fields = append(fields,
 			field("Classification", classificationText(response), true),
-			field("Card Code", fallback(response.Signals.CardCode, "none"), true),
-			field("Match", matchText(response.MarketMatch), false),
 		)
-		if response.MarketMatch.Matched {
+		if response.MarketMatch.Market == "discogs" {
+			fields = append(fields, field("Match", matchText(response.MarketMatch), false))
+			if response.MarketMatch.Matched {
+				fields = append(fields,
+					field("Market Price", dollars(response.MarketMatch.MarketPrice), true),
+					field("Discogs", discogsLink(response.MarketMatch.ProductID), false),
+				)
+			}
+		} else {
 			fields = append(fields,
-				field("Market Price", dollars(response.MarketMatch.MarketPrice), true),
-				field("Recent Sale", dollars(response.MarketMatch.RecentMedianSale), true),
+				field("Card Code", fallback(response.Signals.CardCode, "none"), true),
+				field("Match", matchText(response.MarketMatch), false),
 			)
-		}
-		if len(response.MarketMatches) > 0 {
-			fields = append(fields, field("Card Matches", multiMatchText(response.MarketMatches), false))
+			if response.MarketMatch.Matched {
+				fields = append(fields,
+					field("Market Price", dollars(response.MarketMatch.MarketPrice), true),
+					field("Recent Sale", dollars(response.MarketMatch.RecentMedianSale), true),
+				)
+			}
+			if len(response.MarketMatches) > 0 {
+				fields = append(fields, field("Card Matches", multiMatchText(response.MarketMatches), false))
+			}
 		}
 		if warnings := warningsText(response.Warnings); warnings != "" {
 			fields = append(fields, field("Warnings", warnings, false))
@@ -158,7 +170,12 @@ func BuildDealPayload(username, label string, listing *Listing, response *Resolv
 		fields = append(fields, field("Source", label, false))
 	}
 	if response != nil {
-		if len(response.MarketMatches) > 0 {
+		if response.MarketMatch.Market == "discogs" {
+			fields = append(fields,
+				field("Release", fallback(response.MarketMatch.ProductName, "Unknown"), false),
+				field("Discogs", discogsLink(response.MarketMatch.ProductID), false),
+			)
+		} else if len(response.MarketMatches) > 0 {
 			fields = append(fields, field("Card Matches", multiMatchText(response.MarketMatches), false))
 		} else {
 			fields = append(fields,
@@ -166,7 +183,9 @@ func BuildDealPayload(username, label string, listing *Listing, response *Resolv
 				field("TCGplayer", tcgPlayerLink(response.MarketMatch.ProductID), false),
 			)
 		}
-		fields = append(fields, field("Card Code", fallback(response.Signals.CardCode, "none"), true))
+		if response.MarketMatch.Market != "discogs" {
+			fields = append(fields, field("Card Code", fallback(response.Signals.CardCode, "none"), true))
+		}
 	}
 
 	embed := map[string]any{
@@ -261,6 +280,14 @@ func fallback(value, fallbackValue string) string {
 		return fallbackValue
 	}
 	return value
+}
+
+func discogsLink(releaseID string) string {
+	releaseID = strings.TrimSpace(releaseID)
+	if releaseID == "" {
+		return "No release link"
+	}
+	return "https://www.discogs.com/release/" + releaseID
 }
 
 func tcgPlayerLink(productID string) string {
