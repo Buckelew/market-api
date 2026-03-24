@@ -1,7 +1,9 @@
 package vision
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -28,6 +30,11 @@ type Provider struct {
 	langs        string
 	maxImages    int
 	ocrTimeout   time.Duration
+	ollamaURL    string
+	ollamaModel  string
+	visionAPIKey  string
+	visionAPIBase string
+	visionModel   string
 }
 
 const (
@@ -51,7 +58,7 @@ type ocrObservation struct {
 	JapaneseHints    []string `json:"japanese_hints,omitempty"`
 }
 
-func New(tesseractBin, langs string, maxImages int) *Provider {
+func New(tesseractBin, langs string, maxImages int, ollamaURL, ollamaModel, visionAPIKey, visionAPIBase, visionModel string) *Provider {
 	if strings.TrimSpace(tesseractBin) == "" {
 		tesseractBin = "tesseract"
 	}
@@ -62,12 +69,21 @@ func New(tesseractBin, langs string, maxImages int) *Provider {
 		maxImages = 4
 	}
 
+	if strings.TrimSpace(visionModel) == "" {
+		visionModel = "gpt-4.1-mini"
+	}
+
 	return &Provider{
 		client:       &http.Client{Timeout: defaultImageDownloadTimeout},
 		tesseractBin: tesseractBin,
 		langs:        langs,
 		maxImages:    maxImages,
 		ocrTimeout:   defaultOCRTimeout,
+		ollamaURL:     strings.TrimRight(ollamaURL, "/"),
+		ollamaModel:   ollamaModel,
+		visionAPIKey:  visionAPIKey,
+		visionAPIBase: strings.TrimRight(visionAPIBase, "/"),
+		visionModel:   visionModel,
 	}
 }
 
@@ -75,6 +91,14 @@ func (p *Provider) AnalyzeOnePiece(ctx context.Context, title, description strin
 	cleaned := limitImageURLs(imageURLs, p.maxImages)
 	if len(cleaned) == 0 {
 		return nil, nil
+	}
+
+	if p.visionAPIKey != "" {
+		result, err := p.analyzeWithOpenAI(ctx, title, description, cleaned)
+		if err == nil {
+			return result, nil
+		}
+		// Fall back to OCR pipeline on OpenAI failure
 	}
 
 	observations := make([]ocrObservation, 0, len(cleaned)*2)
@@ -380,12 +404,317 @@ func (p *Provider) downloadImage(ctx context.Context, imageURL string) (string, 
 }
 
 func (p *Provider) runOCR(ctx context.Context, path string) (string, error) {
+	if p.ollamaURL != "" && p.ollamaModel != "" {
+		text, err := p.runOllamaOCR(ctx, path)
+		if err == nil {
+			return text, nil
+		}
+		// Fall back to Tesseract on Ollama failure
+	}
+	return p.runTesseractOCR(ctx, path)
+}
+
+func (p *Provider) runTesseractOCR(ctx context.Context, path string) (string, error) {
 	cmd := exec.CommandContext(ctx, p.tesseractBin, path, "stdout", "-l", p.langs, "--psm", "6")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", path, err)
 	}
 	return string(output), nil
+}
+
+func (p *Provider) runOllamaOCR(ctx context.Context, path string) (string, error) {
+	imageData, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read image %s: %w", path, err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(imageData)
+
+	body, err := json.Marshal(map[string]any{
+		"model":  p.ollamaModel,
+		"prompt": "OCR this image. Output only the recognized text, nothing else.",
+		"images": []string{encoded},
+		"stream": false,
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal ollama request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.ollamaURL+"/api/generate", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("build ollama request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	ollamaClient := &http.Client{Timeout: p.ocrTimeout}
+	resp, err := ollamaClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("ollama request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("ollama returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Response string `json:"response"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode ollama response: %w", err)
+	}
+
+	return result.Response, nil
+}
+
+type openAIImageAnalysis struct {
+	CardCodes  []string `json:"card_codes"`
+	SetCode    string   `json:"set_code"`
+	SetName    string   `json:"set_name"`
+	SealedType string   `json:"sealed_type"`
+	Variant    string   `json:"variant"`
+	Language   string   `json:"language"`
+	Quantity   int      `json:"quantity"`
+	Confidence float64  `json:"confidence"`
+}
+
+type openAIResponse struct {
+	OutputText string `json:"output_text"`
+	Output     []struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	} `json:"output"`
+}
+
+func (p *Provider) analyzeWithOpenAI(ctx context.Context, title, description string, imageURLs []string) (*models.VisionAnalysisResult, error) {
+	ctx, cancel := withTimeoutCap(ctx, 25*time.Second)
+	defer cancel()
+
+	content := []map[string]any{
+		{
+			"type": "input_text",
+			"text": fmt.Sprintf(
+				"Analyze these One Piece trading card images from a Mercari listing.\n\nTitle: %s\nDescription: %s\n\nExtract card codes, set code, set name, sealed type, card variant, language, quantity, and confidence.",
+				title, description,
+			),
+		},
+	}
+	for _, url := range imageURLs {
+		content = append(content, map[string]any{
+			"type":      "input_image",
+			"image_url": url,
+		})
+	}
+
+	payload := map[string]any{
+		"model": p.visionModel,
+		"input": []map[string]any{
+			{
+				"role": "system",
+				"content": []map[string]any{
+					{
+						"type": "input_text",
+						"text": "You are a One Piece TCG card identifier. Extract structured data from card images. " +
+							"card_codes: array of all visible card codes in canonical form (e.g. OP14-033). " +
+							"set_code: the set prefix (e.g. OP14, ST21, PRB01, EB01). " +
+							"set_name: the official set name if identifiable, otherwise empty string. " +
+							"sealed_type: if this is sealed product use one of: booster_box, booster_pack, starter_deck, double_pack, gift_collection, collection_box. Otherwise empty string. " +
+							"variant: determine the card variant by reading the rarity text printed on the card itself (bottom area). " +
+							"IMPORTANT: One Piece TCG cards have rarity text printed on them: C, UC, R, SR, SEC, L, SP, etc. " +
+							"Look for STARS (★) above the rarity text — stars indicate a parallel/alternate art version. " +
+							"Rules: " +
+							"If rarity text is SR, SEC, R, C, UC, or L with NO stars above it → 'base'. " +
+							"If there are stars (★) above the rarity text → 'parallel' (this is an alternate art). " +
+							"If rarity text is SP → 'sp' (special art variant). " +
+							"If the card artwork is black and white manga panels → 'manga'. " +
+							"If it is a promo card (tournament prize, illustration box exclusive, premium card collection, treasure cup) → 'promo'. " +
+							"If it is a reprint from a Premium Booster set → 'reprint'. " +
+							"When in doubt, default to 'base'. " +
+							"language: en for English printing, jp for Japanese printing. Use jp if you see Japanese text on the card itself (not just the listing). " +
+							"quantity: number of distinct cards visible. " +
+							"confidence: your overall confidence 0-1. " +
+							"Return only valid JSON.",
+					},
+				},
+			},
+			{
+				"role":    "user",
+				"content": content,
+			},
+		},
+		"text": map[string]any{
+			"format": map[string]any{
+				"type":   "json_schema",
+				"name":   "card_image_analysis",
+				"strict": true,
+				"schema": map[string]any{
+					"type":                 "object",
+					"additionalProperties": false,
+					"required":             []string{"card_codes", "set_code", "set_name", "sealed_type", "variant", "language", "quantity", "confidence"},
+					"properties": map[string]any{
+						"card_codes":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"set_code":    map[string]any{"type": "string"},
+						"set_name":    map[string]any{"type": "string"},
+						"sealed_type": map[string]any{"type": "string"},
+						"variant":     map[string]any{"type": "string", "enum": []string{"base", "parallel", "sp", "manga", "reprint", "promo"}},
+						"language":    map[string]any{"type": "string", "enum": []string{"en", "jp", "unknown"}},
+						"quantity":    map[string]any{"type": "integer"},
+						"confidence":  map[string]any{"type": "number"},
+					},
+				},
+			},
+		},
+		"max_output_tokens": 200,
+	}
+
+	rawReq, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal openai request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.visionAPIBase+"/responses", bytes.NewReader(rawReq))
+	if err != nil {
+		return nil, fmt.Errorf("build openai request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+p.visionAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("openai request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read openai response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		snippet := string(rawResp)
+		if len(snippet) > 200 {
+			snippet = snippet[:200]
+		}
+		return nil, fmt.Errorf("openai status %d: %s", resp.StatusCode, snippet)
+	}
+
+	var apiResp openAIResponse
+	if err := json.Unmarshal(rawResp, &apiResp); err != nil {
+		return nil, fmt.Errorf("parse openai response: %w", err)
+	}
+
+	text := strings.TrimSpace(apiResp.OutputText)
+	if text == "" {
+		for _, out := range apiResp.Output {
+			for _, c := range out.Content {
+				if c.Type == "output_text" && strings.TrimSpace(c.Text) != "" {
+					text = strings.TrimSpace(c.Text)
+					break
+				}
+			}
+			if text != "" {
+				break
+			}
+		}
+	}
+	if text == "" {
+		return nil, fmt.Errorf("openai response missing output text")
+	}
+
+	var analysis openAIImageAnalysis
+	if err := json.Unmarshal([]byte(text), &analysis); err != nil {
+		return nil, fmt.Errorf("parse openai output json: %w | output=%s", err, text)
+	}
+
+	// Normalize card codes through the same extraction
+	validCodes := make([]string, 0, len(analysis.CardCodes))
+	for _, raw := range analysis.CardCodes {
+		if code := classify.ExtractOnePieceCardCode(raw); code != "" {
+			validCodes = append(validCodes, code)
+		}
+	}
+
+	primaryCode := ""
+	if len(validCodes) > 0 {
+		primaryCode = validCodes[0]
+	}
+
+	language := "unknown"
+	switch strings.ToLower(strings.TrimSpace(analysis.Language)) {
+	case "en", "english":
+		language = "en"
+	case "jp", "ja", "japanese":
+		language = "jp"
+	}
+
+	confidence := analysis.Confidence
+	if confidence < 0 {
+		confidence = 0
+	}
+	if confidence > 1 {
+		confidence = 1
+	}
+
+	reasons := []string{"openai vision analysis"}
+
+	variant := strings.ToLower(strings.TrimSpace(analysis.Variant))
+
+	signals := models.Signals{
+		CardCode:        primaryCode,
+		CardCodes:       validCodes,
+		SetCode:         strings.ToUpper(strings.TrimSpace(analysis.SetCode)),
+		SetName:         strings.TrimSpace(analysis.SetName),
+		SealedType:      strings.TrimSpace(analysis.SealedType),
+		Variant:         variant,
+		Language:         language,
+		Quantity:         analysis.Quantity,
+		ImageLanguage:   language,
+		ImageConfidence: confidence,
+	}
+
+	rawPayload, err := marshalAny(map[string]any{
+		"image_urls":  imageURLs,
+		"title":       title,
+		"description": description,
+		"openai_raw":  text,
+		"analysis":    analysis,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	normalizedJSON, err := marshalAny(map[string]any{
+		"card_code":         primaryCode,
+		"card_codes":        validCodes,
+		"set_code":          signals.SetCode,
+		"set_name":          signals.SetName,
+		"sealed_type":       signals.SealedType,
+		"variant":           variant,
+		"language":          language,
+		"quantity":          analysis.Quantity,
+		"image_language":    language,
+		"image_confidence":  confidence,
+		"images_considered": len(imageURLs),
+		"provider":          "openai",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.VisionAnalysisResult{
+		Signals:  signals,
+		Reasons:  reasons,
+		Warnings: nil,
+		ProviderResult: models.ProviderResult{
+			Provider:       "vision",
+			Market:         "unknown",
+			Query:          providerQuery(signals, imageURLs),
+			RawPayload:     rawPayload,
+			NormalizedJSON: normalizedJSON,
+			Confidence:     confidence,
+		},
+	}, nil
 }
 
 func withTimeoutCap(ctx context.Context, max time.Duration) (context.Context, context.CancelFunc) {

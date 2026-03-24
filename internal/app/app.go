@@ -35,7 +35,7 @@ func New(cfg config.Config) (*App, error) {
 
 	store := db.NewStore(database)
 	classifier := classify.New()
-	vision := visionprovider.New(cfg.TesseractBin, cfg.VisionOCRLangs, cfg.VisionMaxImages)
+	vision := visionprovider.New(cfg.TesseractBin, cfg.VisionOCRLangs, cfg.VisionMaxImages, cfg.OllamaURL, cfg.OllamaModel, cfg.VisionAPIKey, cfg.VisionAPIBase, cfg.VisionModel)
 	cardClient := tcgplayer.NewClient(cfg.TCGPlayerCookie)
 	card := cardprovider.New(cardClient, cfg.CardSalesLimit)
 	resolver := resolve.NewService(store, classifier, vision, card)

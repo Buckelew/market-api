@@ -256,22 +256,36 @@ func cardCandidatePreference(query string, candidate tcgplayer.MatchCandidate) i
 		score += 120
 	}
 
-	for _, variant := range []struct {
-		token      string
+	variantKeywords := []struct {
+		tokens     []string
 		candidates []string
 	}{
-		{token: "parallel", candidates: []string{"parallel", "alternate art"}},
-		{token: "sp", candidates: []string{" sp "}},
-		{token: "reprint", candidates: []string{"reprint"}},
-		{token: "japanese", candidates: []string{"japanese"}},
-	} {
-		queryHas := strings.Contains(queryText, " "+variant.token+" ")
+		{tokens: []string{"parallel", "alternate art"}, candidates: []string{"parallel", "alternate art"}},
+		{tokens: []string{"sp"}, candidates: []string{" sp "}},
+		{tokens: []string{"reprint"}, candidates: []string{"reprint"}},
+		{tokens: []string{"japanese"}, candidates: []string{"japanese"}},
+		{tokens: []string{"manga"}, candidates: []string{"manga"}},
+		{tokens: []string{"promo", "illustration box", "treasure cup", "premium card collection"}, candidates: []string{"illustration box", "treasure cup", "premium card collection"}},
+	}
+
+	isVariant := false
+	for _, variant := range variantKeywords {
+		queryHas := false
+		for _, token := range variant.tokens {
+			if strings.Contains(queryText, " "+token+" ") {
+				queryHas = true
+				break
+			}
+		}
 		candidateHas := false
 		for _, c := range variant.candidates {
 			if strings.Contains(" "+name+" ", c) {
 				candidateHas = true
 				break
 			}
+		}
+		if candidateHas {
+			isVariant = true
 		}
 		if candidateHas && !queryHas {
 			score -= 320
@@ -281,11 +295,7 @@ func cardCandidatePreference(query string, candidate tcgplayer.MatchCandidate) i
 		}
 	}
 
-	if !strings.Contains(" "+name+" ", " parallel ") &&
-		!strings.Contains(name, "alternate art") &&
-		!strings.Contains(" "+name+" ", " sp ") &&
-		!strings.Contains(name, "reprint") &&
-		!strings.Contains(name, "japanese") {
+	if !isVariant {
 		score += 20
 	}
 

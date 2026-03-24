@@ -8,6 +8,7 @@ type ResolveRequestInput struct {
 	Description     string   `json:"description,omitempty"`
 	ImageURL        string   `json:"image_url,omitempty"`
 	ImageURLs       []string `json:"image_urls,omitempty"`
+	Category        string   `json:"category,omitempty"`
 }
 
 type Classification struct {
@@ -25,6 +26,7 @@ type Signals struct {
 	SetName         string   `json:"set_name,omitempty"`
 	SealedType      string   `json:"sealed_type,omitempty"`
 	LotType         string   `json:"lot_type,omitempty"`
+	Variant         string   `json:"variant,omitempty"`
 	Language        string   `json:"language,omitempty"`
 	Quantity        int      `json:"quantity,omitempty"`
 	ImageLanguage   string   `json:"image_language,omitempty"`

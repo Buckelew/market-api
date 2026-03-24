@@ -19,7 +19,13 @@ type Config struct {
 	TesseractBin     string
 	VisionOCRLangs   string
 	VisionMaxImages  int
+	OllamaURL        string
+	OllamaModel      string
+	VisionAPIKey     string
+	VisionAPIBase    string
+	VisionModel      string
 	AuthToken        string
+	DiscogsToken     string
 }
 
 func Load() (Config, error) {
@@ -33,7 +39,13 @@ func Load() (Config, error) {
 		TesseractBin:     envOrDefault("TESSERACT_BIN", "tesseract"),
 		VisionOCRLangs:   envOrDefault("VISION_OCR_LANGS", "eng+jpn"),
 		VisionMaxImages:  4,
+		OllamaURL:        envOrDefault("OLLAMA_URL", "http://localhost:11434"),
+		OllamaModel:      envOrDefault("OLLAMA_MODEL", "glm-ocr"),
+		VisionAPIKey:     strings.TrimSpace(os.Getenv("VISION_API_KEY")),
+		VisionAPIBase:   envOrDefault("VISION_API_BASE", "https://openrouter.ai/api/v1"),
+		VisionModel:      envOrDefault("VISION_MODEL", "openai/gpt-4.1-mini"),
 		AuthToken:        strings.TrimSpace(os.Getenv("MARKET_API_AUTH_TOKEN")),
+		DiscogsToken:     strings.TrimSpace(os.Getenv("DISCOGS_TOKEN")),
 	}
 
 	if raw := os.Getenv("BATCH_CONCURRENCY"); raw != "" {

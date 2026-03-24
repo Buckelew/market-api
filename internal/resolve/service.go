@@ -270,6 +270,9 @@ func mergeSignals(existing, incoming models.Signals) models.Signals {
 	if existing.LotType == "" && incoming.LotType != "" {
 		existing.LotType = incoming.LotType
 	}
+	if existing.Variant == "" && incoming.Variant != "" {
+		existing.Variant = incoming.Variant
+	}
 	if existing.Language == "" && incoming.Language != "" {
 		existing.Language = incoming.Language
 	}
@@ -477,10 +480,31 @@ func tradingCardProviderQuery(raw models.ResolveRequestInput, normalized models.
 	if signals.SetName != "" {
 		parts = append(parts, signals.SetName)
 	}
-	if hint := variantQueryHint(raw, normalized); hint != "" {
+	// Prefer image-detected variant over text-based hint
+	if hint := variantHint(signals, raw, normalized); hint != "" {
 		parts = append(parts, hint)
 	}
 	return strings.TrimSpace(strings.Join(parts, " "))
+}
+
+// variantHint returns a query hint for variant matching.
+// Prefers the vision-detected variant from the image, falls back to text heuristics.
+func variantHint(signals models.Signals, raw, normalized models.ResolveRequestInput) string {
+	if signals.Variant != "" && signals.Variant != "base" {
+		switch signals.Variant {
+		case "parallel":
+			return "alternate art"
+		case "sp":
+			return "sp"
+		case "manga":
+			return "manga"
+		case "reprint":
+			return "reprint"
+		case "promo":
+			return "promo"
+		}
+	}
+	return variantQueryHint(raw, normalized)
 }
 
 func sealedProviderQuery(raw models.ResolveRequestInput, normalized models.ResolveRequestInput, signals models.Signals) string {
