@@ -1,25 +1,34 @@
 # market-api
 
-Standalone Go API for normalizing inbound listing data, classifying items, and resolving market metadata.
+Takes a raw marketplace listing and tells you what it is and what it sells for.
 
-## Current Status
+I buy and sell One Piece cards, and Mercari listings are messy: titles are often vague or wrong, the card code is often only in the photo, and Japanese prints get mixed in with English ones. This API does the lookup I was doing by hand. You send it a title, description, and photos. It sends back the card, the language, and recent TCGplayer prices.
 
-This initial scaffold includes:
+## How a listing gets resolved
 
-- config loading
-- SQLite database bootstrap and migrations
-- `GET /healthz`
-- `POST /v1/resolve`
-- `POST /v1/resolve/batch`
-- `GET /v1/requests/{id}`
-- `GET /v1/results/{id}`
-- basic One Piece text classification for singles and sealed products
-- request fingerprint caching
-- direct `card` package TCGplayer resolution
-- local Tesseract OCR for One Piece image analysis
-- optional `image_urls` multi-photo input
-- English vs Japanese printing detection with TCGplayer skip for strong JP signals
-- raw provider payload persistence in `provider_results`
+1. The input is cleaned up and hashed (SHA-256). If the same listing was already resolved, the saved answer comes back right away.
+2. Regex rules pull out the card code (like `OP05-119`), set, language, sealed product type (booster box, pack, starter deck), quantity, and whether it's a lot.
+3. Each photo goes through OCR twice: once whole, and once cropped to the bottom third, where One Piece cards print their code. Hits from the crop count for more. OCR uses a local Ollama model and falls back to Tesseract. If `VISION_API_KEY` is set, a vision model reads the photos first and OCR is the backup.
+4. Text and photo results are combined. If they disagree, the response includes a warning.
+5. Singles and sealed product are matched on TCGplayer, with recent sales. If the photos show a Japanese print, the TCGplayer lookup is skipped, since the English price would be wrong.
+
+Every provider's raw response is saved in SQLite, so you can see why a match came out the way it did.
+
+Batch requests run with a fixed number of workers (`BATCH_CONCURRENCY`, default 4).
+
+## API
+
+```
+GET  /healthz
+POST /v1/resolve          one listing
+POST /v1/resolve/batch    many listings
+GET  /v1/requests/{id}
+GET  /v1/results/{id}
+```
+
+## Building it
+
+This won't build as-is outside my machine. It depends on two modules of mine that aren't public, `github.com/Buckelew/card` (the TCGplayer client) and a local `discogs` module pulled in with a `replace` in `go.mod`.
 
 ## Run
 
@@ -42,9 +51,9 @@ Environment variables:
 
 `market-api` imports `github.com/Buckelew/card` directly as a private Go module.
 
-## Mercari Monitor Scripts
+## Mercari monitor scripts
 
-Two cron-friendly scripts now live in this repo and use `market-api` for valuation:
+Two cron-friendly scripts use `market-api` to find deals on Mercari and post them to Discord:
 
 - `./scripts/run_mercari_saved_monitor.sh`
   - scans `cari saved-queries scan`
@@ -86,9 +95,9 @@ Notes:
 
 - First run defaults to `BOOTSTRAP_ON_EMPTY_STATE=true`, which records current listings without alerting.
 - State is stored separately for each monitor under `state/`.
-- Deals use the same ROI/confidence math as the earlier Mercari deal monitor: buyer fee, shipping, `MIN_ROI`, and `MIN_CONFIDENCE`.
+- A listing counts as a deal when its ROI after buyer fee and shipping clears `MIN_ROI` and the match confidence clears `MIN_CONFIDENCE`.
 
-## Generate Mercari Image Fixtures
+## Generate Mercari image fixtures
 
 To build a local One Piece image fixture set from Mercari with card codes removed from text fields:
 
@@ -96,7 +105,7 @@ To build a local One Piece image fixture set from Mercari with card codes remove
 make generate-image-testdata
 ```
 
-This writes [one_piece_image_cases.json](/Users/caden/Documents/Coding/Personal/market-api/testdata/one_piece_image_cases.json) and includes:
+This writes [`testdata/one_piece_image_cases.json`](testdata/one_piece_image_cases.json) and includes:
 
 - original Mercari title and description
 - redacted title and description with the detected card code removed
